@@ -1,20 +1,12 @@
 import streamlit as st
-import pickle
+import pandas as pd
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
 
-# Load model & scaler
-with open("diabetes_model.pkl", "rb") as f:
-    model = pickle.load(f)
-
-with open("diabetes_scaler.pkl", "rb") as f:
-    scaler = pickle.load(f)
-
-# Custom CSS styling
+# CSS styling
 st.markdown("""
     <style>
-    body {
-        background-color: #f5f7fa;
-    }
     .main {
         background-color: #ffffff;
         padding: 2rem;
@@ -41,7 +33,26 @@ st.markdown("""
 
 st.markdown('<div class="main">', unsafe_allow_html=True)
 st.markdown('<div class="title">🩺 Prediksi Diabetes</div>', unsafe_allow_html=True)
-st.write("Masukkan data pasien untuk memprediksi kemungkinan diabetes.")
+
+# Data dummy training (dari dataset diabetes.csv)
+@st.cache_data
+def load_model():
+    url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
+    col_names = ["Pregnancies", "Glucose", "BloodPressure", "SkinThickness", "Insulin",
+                 "BMI", "DiabetesPedigreeFunction", "Age", "Outcome"]
+    df = pd.read_csv(url, names=col_names)
+
+    X = df.drop("Outcome", axis=1)
+    y = df["Outcome"]
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_scaled, y)
+    return model, scaler
+
+model, scaler = load_model()
 
 # Form input
 pregnancies = st.number_input("Jumlah Kehamilan", min_value=0, max_value=20, value=1)
@@ -54,12 +65,11 @@ dpf = st.number_input("Diabetes Pedigree Function", min_value=0.0, max_value=2.5
 age = st.number_input("Usia", min_value=1, max_value=120, value=30)
 
 if st.button("Prediksi"):
-    data = np.array([[pregnancies, glucose, blood_pressure, skin_thickness,
-                      insulin, bmi, dpf, age]])
-    data_scaled = scaler.transform(data)
-    prediction = model.predict(data_scaled)[0]
-
-    result = "🟢 Tidak Diabetes" if prediction == 0 else "🔴 Diabetes"
+    input_data = np.array([[pregnancies, glucose, blood_pressure, skin_thickness,
+                            insulin, bmi, dpf, age]])
+    scaled_data = scaler.transform(input_data)
+    pred = model.predict(scaled_data)[0]
+    result = "🟢 Tidak Diabetes" if pred == 0 else "🔴 Diabetes"
     st.markdown(f'<div class="prediction-box">Hasil Prediksi: {result}</div>', unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
